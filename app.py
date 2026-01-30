@@ -60,14 +60,12 @@ client = st.session_state.client
 def image_to_base64(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
-# ---------------- Output Formatting (FINAL & SAFE) ----------------
+# ---------------- Output Formatter (FINAL & SIMPLE) ----------------
 def prettify_output(text: str) -> str:
     text = text.replace("**", "").strip()
 
-    # -------- FOOD ITEMS --------
+    # FOOD ITEMS
     food_items = []
-    seen = set()
-
     if "FOOD ITEMS:" in text:
         _, rest = text.split("FOOD ITEMS:", 1)
         for line in rest.splitlines():
@@ -75,9 +73,7 @@ def prettify_output(text: str) -> str:
             if not line or "TOTAL CALORIES" in line.upper():
                 break
             clean = line.lstrip("•-0123456789. ").strip()
-            key = clean.lower()
-            if clean and key not in seen:
-                seen.add(key)
+            if clean and clean not in food_items:
                 food_items.append(clean)
 
     food_block = ""
@@ -86,74 +82,50 @@ def prettify_output(text: str) -> str:
             f"{i+1}. {item}" for i, item in enumerate(food_items)
         )
 
-    # -------- TOTAL CALORIES --------
+    # TOTAL CALORIES
     calories_block = ""
-    calories_match = re.search(
-        r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)",
-        text,
-        flags=re.IGNORECASE
-    )
-    if calories_match:
-        calories_block = f"🔥 TOTAL CALORIES: {calories_match.group(1)} calories"
+    match = re.search(r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)", text, re.I)
+    if match:
+        calories_block = f"🔥 TOTAL CALORIES: {match.group(1)} calories"
 
-    # -------- HEALTH TIPS (PLAIN TEXT HEADER) --------
+    # HEALTH TIPS (PLAIN TEXT, NO INLINE CONTENT)
     tips = []
     if "HEALTH TIPS" in text:
         tips_text = text.split("HEALTH TIPS", 1)[1]
         tips_text = tips_text.replace(":", "").strip()
 
-        raw = re.split(r"(?:🥗|•|Tip\s*\d+)", tips_text, flags=re.IGNORECASE)
-        tips = [t.strip() for t in raw if len(t.strip()) > 10]
+        parts = re.split(r"(?:🥗|•|Tip\s*\d+)", tips_text, flags=re.I)
+        tips = [p.strip() for p in parts if len(p.strip()) > 10]
 
     if not tips:
         tips = [
             "Watch portion sizes to avoid excess calorie intake.",
-            "Balance meals with vegetables and protein for better nutrition."
+            "Balance meals with vegetables and protein."
         ]
 
-    tips_block = "HEALTH TIPS:\n" + "\n".join(
-        f"🥗 {tip}" for tip in tips
-    )
+    tips_block = "HEALTH TIPS:\n" + "\n".join(f"🥗 {tip}" for tip in tips)
 
     return "\n\n".join(
-        part for part in [food_block, calories_block, tips_block] if part
+        block for block in [food_block, calories_block, tips_block] if block
     )
 
 # ---------------- Vision Analysis ----------------
 def analyze_food_with_vision(image_base64):
-    system_prompt = """
-You are a nutrition assistant.
-If the image shows food, make a best-effort calorie estimate.
-Do not refuse. Use common portion sizes.
-"""
-
-    user_prompt = """
-Analyze the food in this image and return:
-
-FOOD ITEMS:
-1. Item - Calories
-
-TOTAL CALORIES: Number
-
-HEALTH TIPS:
-• Tip 1
-• Tip 2
-"""
-
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": system_prompt},
+                {
+                    "role": "system",
+                    "content": "You are a nutrition assistant. Estimate calories using common portion sizes."
+                },
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": user_prompt},
+                        {"type": "text", "text": "Analyze this food image and return FOOD ITEMS, TOTAL CALORIES and HEALTH TIPS."},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            }
+                            "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
                         }
                     ]
                 }
@@ -168,25 +140,14 @@ HEALTH TIPS:
 
 # ---------------- Text Fallback ----------------
 def analyze_food_from_text(description):
-    prompt = f"""
-Estimate calories based on this food description:
-
-{description}
-
-Return:
-
-FOOD ITEMS:
-1. Item - Calories
-
-TOTAL CALORIES: Number
-
-HEALTH TIPS:
-• Tip 1
-• Tip 2
-"""
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {
+                "role": "user",
+                "content": f"Estimate calories for this food: {description}. Return FOOD ITEMS, TOTAL CALORIES, HEALTH TIPS."
+            }
+        ],
         max_tokens=400,
     )
     return response.choices[0].message.content
@@ -202,22 +163,16 @@ if uploaded_file:
 
     if st.button("Calculate Calories"):
         with st.spinner("Analyzing your food..."):
-            image_b64 = image_to_base64(uploaded_file)
-            result = analyze_food_with_vision(image_b64)
-
+            result = analyze_food_with_vision(image_to_base64(uploaded_file))
             if result:
                 st.success("Analysis Complete!")
                 st.markdown(prettify_output(result))
             else:
                 st.warning("I couldn’t confidently identify the food.")
 
-# ---------------- User Confirmation ----------------
+# ---------------- User Help ----------------
 if st.session_state.vision_failed:
-    st.markdown("Help me out 👇")
-    description = st.text_input(
-        "What food is this? (e.g., pizza, rice, dal + roti)"
-    )
-
+    description = st.text_input("What food is this? (e.g., pizza, rice, dal + roti)")
     if description and st.button("Estimate Calories from Description"):
         with st.spinner("Estimating calories..."):
             result = analyze_food_from_text(description)
