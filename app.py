@@ -91,7 +91,7 @@ def analyze_food(image_base64):
     """
 
     response = client.chat.completions.create(
-        model="meta-llama/Llama-3.2-11B-Vision-Instruct",
+        model="meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
         messages=[
             {
                 "role": "user",
