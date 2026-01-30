@@ -44,22 +44,9 @@ with st.sidebar:
                 st.error("❌ Invalid API key")
 
     st.markdown("---")
-
-    # ✅ LinkedIn branding (exact style)
     st.markdown(
-        """
-        <div style="margin-top:40px;">
-            <p style="font-size:14px; margin-bottom:4px;">
-                Built by <strong>Sahil Jain</strong> 🚀
-            </p>
-            <a href="https://www.linkedin.com/in/sahils007in/"
-               target="_blank"
-               style="font-size:14px; color:#0A66C2; text-decoration:none;">
-                LinkedIn
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
+        "**Built by Sahil Jain** 🚀  \n"
+        "[LinkedIn](https://www.linkedin.com/in/sahils007in/)"
     )
 
 # ---------------- Guard ----------------
