@@ -1,37 +1,41 @@
-# Import required libraries
 import streamlit as st
 from dotenv import load_dotenv
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from PIL import Image
 
-# Load the API key from .env file
+# Load env variables
 load_dotenv()
 
-# Configure Gemini
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Initialize Gemini client
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def get_gemini_response(image, prompt):
-    """Send image to Google's AI and get calorie information"""
+def get_gemini_response(image_bytes, prompt):
     try:
-        model = genai.GenerativeModel("gemini-pro-vision")
-        response = model.generate_content([image[0], prompt])
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part(text=prompt),
+                        types.Part(
+                            inline_data=types.Blob(
+                                mime_type="image/jpeg",
+                                data=image_bytes
+                            )
+                        )
+                    ]
+                )
+            ]
+        )
         return response.text
     except Exception as e:
         return f"Error: {str(e)}"
 
-def prepare_image(uploaded_file):
-    """Convert uploaded image to Gemini image format"""
-    if uploaded_file:
-        return [{
-            "mime_type": uploaded_file.type,
-            "data": uploaded_file.getvalue()
-        }]
-    return None
-
 def main():
     st.set_page_config(page_title="Calorie Advisor", page_icon="🍽️")
-
     st.title("🍽️ Calorie Advisor")
     st.write("Upload a photo of your food to get calorie information!")
 
@@ -63,13 +67,13 @@ def main():
                 • [Tip 2]
                 """
 
-                image_data = prepare_image(uploaded_file)
-                if image_data:
-                    response = get_gemini_response(image_data, prompt)
-                    st.success("Analysis Complete!")
-                    st.write(response)
-                else:
-                    st.error("Please upload an image first!")
+                response = get_gemini_response(
+                    uploaded_file.getvalue(),
+                    prompt
+                )
+
+                st.success("Analysis Complete!")
+                st.write(response)
 
 if __name__ == "__main__":
     main()
