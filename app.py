@@ -92,12 +92,25 @@ def format_health_tips(text: str) -> str:
     before, tips = text.split("HEALTH TIPS", 1)
     tips = tips.replace(":", "").strip()
 
-    raw = tips.replace("•", "\n").replace("-", "\n").split("\n")
-    clean = [t.strip() for t in raw if len(t.strip()) > 5]
+    # Normalize separators
+    tips = tips.replace("•", "\n").replace("-", "\n")
 
-    bullets = "\n".join([f"🥗 {tip}" for tip in clean])
+    # Split on "Tip 1 / Tip 2 / Tip 3" (with or without emoji)
+    split_tips = re.split(
+        r"(?:🥗?\s*Tip\s*\d+[:\-]?)",
+        tips,
+        flags=re.IGNORECASE
+    )
 
-    return f"{before.strip()}\n\nHEALTH TIPS:\n{bullets}"
+    clean_tips = [
+        tip.strip()
+        for tip in split_tips
+        if len(tip.strip()) > 5
+    ]
+
+    formatted = "\n".join([f"🥗 {tip}" for tip in clean_tips])
+
+    return f"{before.strip()}\n\nHEALTH TIPS:\n{formatted}"
 
 
 def highlight_total_calories(text: str) -> str:
