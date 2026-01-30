@@ -45,8 +45,8 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(
-        "**Built by Sahil Jain** 🚀  \n"
-        "[LinkedIn](https://www.linkedin.com/in/sahils007in/)"
+        "Built by Sahil Jain 🚀  \n"
+        "LinkedIn: https://www.linkedin.com/in/sahils007in/"
     )
 
 # ---------------- Guard ----------------
@@ -60,11 +60,11 @@ client = st.session_state.client
 def image_to_base64(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
-# ---------------- Output Formatting (FINAL) ----------------
+# ---------------- Output Formatting (FINAL & SAFE) ----------------
 def prettify_output(text: str) -> str:
     text = text.replace("**", "").strip()
 
-    # ---------- FOOD ITEMS ----------
+    # -------- FOOD ITEMS --------
     food_items = []
     seen = set()
 
@@ -82,22 +82,21 @@ def prettify_output(text: str) -> str:
 
     food_block = ""
     if food_items:
-        food_block = "**FOOD ITEMS:**\n" + "\n".join(
+        food_block = "FOOD ITEMS:\n" + "\n".join(
             f"{i+1}. {item}" for i, item in enumerate(food_items)
         )
 
-    # ---------- TOTAL CALORIES ----------
+    # -------- TOTAL CALORIES --------
+    calories_block = ""
     calories_match = re.search(
         r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)",
         text,
         flags=re.IGNORECASE
     )
-
-    calories_block = ""
     if calories_match:
-        calories_block = f"🔥 **TOTAL CALORIES:** {calories_match.group(1)} calories"
+        calories_block = f"🔥 TOTAL CALORIES: {calories_match.group(1)} calories"
 
-    # ---------- HEALTH TIPS (FIXED SIZE & LAYOUT) ----------
+    # -------- HEALTH TIPS (PLAIN TEXT HEADER) --------
     tips = []
     if "HEALTH TIPS" in text:
         tips_text = text.split("HEALTH TIPS", 1)[1]
@@ -112,7 +111,7 @@ def prettify_output(text: str) -> str:
             "Balance meals with vegetables and protein for better nutrition."
         ]
 
-    tips_block = "**HEALTH TIPS:**\n" + "\n".join(
+    tips_block = "HEALTH TIPS:\n" + "\n".join(
         f"🥗 {tip}" for tip in tips
     )
 
@@ -214,7 +213,7 @@ if uploaded_file:
 
 # ---------------- User Confirmation ----------------
 if st.session_state.vision_failed:
-    st.markdown("### Help me out 👇")
+    st.markdown("Help me out 👇")
     description = st.text_input(
         "What food is this? (e.g., pizza, rice, dal + roti)"
     )
