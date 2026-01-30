@@ -44,9 +44,22 @@ with st.sidebar:
                 st.error("❌ Invalid API key")
 
     st.markdown("---")
+
+    # ✅ LinkedIn branding (exact style)
     st.markdown(
-        "Built by Sahil Jain 🚀  \n"
-        "LinkedIn: https://www.linkedin.com/in/sahils007in/"
+        """
+        <div style="margin-top:40px;">
+            <p style="font-size:14px; margin-bottom:4px;">
+                Built by <strong>Sahil Jain</strong> 🚀
+            </p>
+            <a href="https://www.linkedin.com/in/sahils007in/"
+               target="_blank"
+               style="font-size:14px; color:#0A66C2; text-decoration:none;">
+                LinkedIn
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
 # ---------------- Guard ----------------
@@ -60,7 +73,7 @@ client = st.session_state.client
 def image_to_base64(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
-# ---------------- Output Formatter (FINAL & ROBUST) ----------------
+# ---------------- Output Formatter (FINAL) ----------------
 def prettify_output(text: str) -> str:
     text = text.replace("**", "").strip()
 
@@ -85,7 +98,7 @@ def prettify_output(text: str) -> str:
             f"{i+1}. {item}" for i, item in enumerate(food_items)
         )
 
-    # -------- TOTAL CALORIES (WITH FALLBACK) --------
+    # -------- TOTAL CALORIES (ROBUST) --------
     calories_block = ""
     calories_match = re.search(
         r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)",
@@ -100,7 +113,7 @@ def prettify_output(text: str) -> str:
         if numbers:
             calories_block = f"🔥 TOTAL CALORIES: ~{max(numbers)} calories (estimated)"
 
-    # -------- HEALTH TIPS (SIMPLE & CLEAN) --------
+    # -------- HEALTH TIPS (SIMPLE) --------
     tips = []
     if "HEALTH TIPS" in text:
         tips_text = text.split("HEALTH TIPS", 1)[1]
