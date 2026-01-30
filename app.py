@@ -13,6 +13,30 @@ if "together_api_key" not in st.session_state:
     st.session_state.together_api_key = None
 if "client" not in st.session_state:
     st.session_state.client = None
+if "api_key_valid" not in st.session_state:
+    st.session_state.api_key_valid = False
+
+# ---------------- API Key Validation ----------------
+def validate_together_api_key(api_key: str) -> bool:
+    """
+    Validate Together API key using a lightweight inference call.
+    """
+    try:
+        test_client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.together.xyz/v1"
+        )
+
+        # Minimal, cheap call
+        test_client.chat.completions.create(
+            model="meta-llama/Llama-3.1-8B-Instruct",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=1
+        )
+        return True
+
+    except Exception:
+        return False
 
 # ---------------- Sidebar: API Key + Branding ----------------
 with st.sidebar:
@@ -21,16 +45,27 @@ with st.sidebar:
     api_key_input = st.text_input(
         "Together API Key",
         type="password",
-        help="Your API key is used only for this session and is not stored."
+        help="Your API key is validated before use and never stored."
     )
 
     if api_key_input:
-        st.session_state.together_api_key = api_key_input.strip()
-        st.session_state.client = OpenAI(
-            api_key=st.session_state.together_api_key,
-            base_url="https://api.together.xyz/v1"
-        )
-        st.success("API key added")
+        if api_key_input.strip() != st.session_state.together_api_key:
+            with st.spinner("Validating API key..."):
+                is_valid = validate_together_api_key(api_key_input.strip())
+
+            if is_valid:
+                st.session_state.together_api_key = api_key_input.strip()
+                st.session_state.client = OpenAI(
+                    api_key=st.session_state.together_api_key,
+                    base_url="https://api.together.xyz/v1"
+                )
+                st.session_state.api_key_valid = True
+                st.success("✅ API key is valid")
+            else:
+                st.session_state.together_api_key = None
+                st.session_state.client = None
+                st.session_state.api_key_valid = False
+                st.error("❌ Invalid Together API key")
 
     st.markdown("---")
     st.markdown(
@@ -38,9 +73,9 @@ with st.sidebar:
         "[LinkedIn](https://www.linkedin.com/in/sahils007in/)"
     )
 
-# ---------------- Block App if No API Key ----------------
-if not st.session_state.client:
-    st.info("👈 Please enter your Together API key in the sidebar to start.")
+# ---------------- Block App if Key Invalid ----------------
+if not st.session_state.api_key_valid:
+    st.info("👈 Enter a valid Together API key in the sidebar to start.")
     st.stop()
 
 client = st.session_state.client
