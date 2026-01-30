@@ -61,67 +61,56 @@ def image_to_base64(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
 # ---------------- Output Formatting ----------------
-def format_food_items(text: str) -> str:
-    if "FOOD ITEMS:" not in text:
-        return text
+def prettify_output(text: str) -> str:
+    # Remove stray markdown symbols
+    text = text.replace("**", "").strip()
 
-    before, rest = text.split("FOOD ITEMS:", 1)
-    lines = rest.splitlines()
+    # -------- FOOD ITEMS (dedupe + number) --------
+    if "FOOD ITEMS:" in text:
+        _, rest = text.split("FOOD ITEMS:", 1)
+        lines = rest.splitlines()
 
-    items = []
-    seen = set()
+        items = []
+        seen = set()
+        remainder = []
 
-    for line in lines:
-        line = line.strip()
-        if not line or "TOTAL CALORIES" in line.upper():
-            break
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if "TOTAL CALORIES" in line.upper():
+                remainder.append(line)
+                break
 
-        clean = line.lstrip("•-0123456789. ").strip()
-        key = clean.lower()
+            clean = line.lstrip("•-0123456789. ").strip()
+            key = clean.lower()
 
-        if clean and key not in seen:
-            seen.add(key)
-            items.append(clean)
+            if clean and key not in seen:
+                seen.add(key)
+                items.append(clean)
 
-    numbered = "\n".join(f"{i+1}. {item}" for i, item in enumerate(items))
-    remainder = rest[rest.upper().find("TOTAL CALORIES"):] if "TOTAL CALORIES" in rest.upper() else ""
+        food_block = "\n".join(f"{i+1}. {item}" for i, item in enumerate(items))
+        text = f"FOOD ITEMS:\n{food_block}\n\n" + "\n".join(remainder)
 
-    return f"{before.strip()}\n\nFOOD ITEMS:\n{numbered}\n\n{remainder.strip()}"
-
-
-def format_health_tips(text: str) -> str:
-    if "HEALTH TIPS" not in text:
-        return text
-
-    before, tips = text.split("HEALTH TIPS", 1)
-    tips = tips.replace(":", "").strip()
-
-    raw_tips = re.split(r"(?:🥗|•|Tip\s*\d+)", tips, flags=re.IGNORECASE)
-
-    clean_tips = [
-        tip.strip()
-        for tip in raw_tips
-        if len(tip.strip()) > 10
-    ]
-
-    formatted = "\n".join(f"🥗 {tip}" for tip in clean_tips)
-
-    return f"{before.strip()}\n\nHEALTH TIPS:\n{formatted}"
-
-
-def highlight_total_calories(text: str) -> str:
-    return re.sub(
-        r"(TOTAL CALORIES:\s*[~]?\d+[\–\-]?\d*\s*calories?)",
-        r"### 🔥 \1",
+    # -------- TOTAL CALORIES (highlight) --------
+    text = re.sub(
+        r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)",
+        r"### 🔥 TOTAL CALORIES: \1 calories",
         text,
         flags=re.IGNORECASE
     )
 
+    # -------- HEALTH TIPS (clean bullets) --------
+    if "HEALTH TIPS" in text:
+        before, tips = text.split("HEALTH TIPS", 1)
+        tips = tips.replace(":", "").strip()
 
-def prettify_output(text: str) -> str:
-    text = format_food_items(text)
-    text = format_health_tips(text)
-    text = highlight_total_calories(text)
+        raw = re.split(r"(?:🥗|•|Tip\s*\d+)", tips, flags=re.IGNORECASE)
+        clean = [t.strip() for t in raw if len(t.strip()) > 10]
+
+        tips_block = "\n".join(f"🥗 {tip}" for tip in clean)
+        text = f"{before.strip()}\n\nHEALTH TIPS:\n{tips_block}"
+
     return text.strip()
 
 # ---------------- Vision Analysis ----------------
