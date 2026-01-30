@@ -19,7 +19,7 @@ client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 def get_gemini_response(image_bytes, mime_type, prompt):
     try:
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="models/gemini-1.5-flash-latest",
             contents=[
                 types.Content(
                     role="user",
