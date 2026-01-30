@@ -60,7 +60,7 @@ client = st.session_state.client
 def image_to_base64(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
-# ---------------- Output Formatting ----------------
+# ---------------- Output Formatting (FINAL) ----------------
 def prettify_output(text: str) -> str:
     text = text.replace("**", "").strip()
 
@@ -82,7 +82,7 @@ def prettify_output(text: str) -> str:
 
     food_block = ""
     if food_items:
-        food_block = "FOOD ITEMS:\n" + "\n".join(
+        food_block = "**FOOD ITEMS:**\n" + "\n".join(
             f"{i+1}. {item}" for i, item in enumerate(food_items)
         )
 
@@ -95,9 +95,9 @@ def prettify_output(text: str) -> str:
 
     calories_block = ""
     if calories_match:
-        calories_block = f"🔥 TOTAL CALORIES: {calories_match.group(1)} calories"
+        calories_block = f"🔥 **TOTAL CALORIES:** {calories_match.group(1)} calories"
 
-    # ---------- HEALTH TIPS ----------
+    # ---------- HEALTH TIPS (FIXED SIZE & LAYOUT) ----------
     tips = []
     if "HEALTH TIPS" in text:
         tips_text = text.split("HEALTH TIPS", 1)[1]
@@ -106,14 +106,15 @@ def prettify_output(text: str) -> str:
         raw = re.split(r"(?:🥗|•|Tip\s*\d+)", tips_text, flags=re.IGNORECASE)
         tips = [t.strip() for t in raw if len(t.strip()) > 10]
 
-    # Default tips if model doesn’t return any
     if not tips:
         tips = [
             "Watch portion sizes to avoid excess calorie intake.",
             "Balance meals with vegetables and protein for better nutrition."
         ]
 
-    tips_block = "HEALTH TIPS:\n" + "\n".join(f"🥗 {tip}" for tip in tips)
+    tips_block = "**HEALTH TIPS:**\n" + "\n".join(
+        f"🥗 {tip}" for tip in tips
+    )
 
     return "\n\n".join(
         part for part in [food_block, calories_block, tips_block] if part
@@ -215,7 +216,7 @@ if uploaded_file:
 if st.session_state.vision_failed:
     st.markdown("### Help me out 👇")
     description = st.text_input(
-        "What food is this? (e.g., rice, pizza, dal + roti)"
+        "What food is this? (e.g., pizza, rice, dal + roti)"
     )
 
     if description and st.button("Estimate Calories from Description"):
