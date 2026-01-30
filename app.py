@@ -60,12 +60,14 @@ client = st.session_state.client
 def image_to_base64(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
-# ---------------- Output Formatter (FINAL & SIMPLE) ----------------
+# ---------------- Output Formatter (FINAL & ROBUST) ----------------
 def prettify_output(text: str) -> str:
     text = text.replace("**", "").strip()
 
-    # FOOD ITEMS
+    # -------- FOOD ITEMS --------
     food_items = []
+    seen = set()
+
     if "FOOD ITEMS:" in text:
         _, rest = text.split("FOOD ITEMS:", 1)
         for line in rest.splitlines():
@@ -73,7 +75,8 @@ def prettify_output(text: str) -> str:
             if not line or "TOTAL CALORIES" in line.upper():
                 break
             clean = line.lstrip("•-0123456789. ").strip()
-            if clean and clean not in food_items:
+            if clean.lower() not in seen:
+                seen.add(clean.lower())
                 food_items.append(clean)
 
     food_block = ""
@@ -82,19 +85,28 @@ def prettify_output(text: str) -> str:
             f"{i+1}. {item}" for i, item in enumerate(food_items)
         )
 
-    # TOTAL CALORIES
+    # -------- TOTAL CALORIES (WITH FALLBACK) --------
     calories_block = ""
-    match = re.search(r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)", text, re.I)
-    if match:
-        calories_block = f"🔥 TOTAL CALORIES: {match.group(1)} calories"
+    calories_match = re.search(
+        r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)",
+        text,
+        flags=re.IGNORECASE
+    )
 
-    # HEALTH TIPS (PLAIN TEXT, NO INLINE CONTENT)
+    if calories_match:
+        calories_block = f"🔥 TOTAL CALORIES: {calories_match.group(1)} calories"
+    else:
+        numbers = [int(n.replace(",", "")) for n in re.findall(r"\b\d{3,4}\b", text)]
+        if numbers:
+            calories_block = f"🔥 TOTAL CALORIES: ~{max(numbers)} calories (estimated)"
+
+    # -------- HEALTH TIPS (SIMPLE & CLEAN) --------
     tips = []
     if "HEALTH TIPS" in text:
         tips_text = text.split("HEALTH TIPS", 1)[1]
         tips_text = tips_text.replace(":", "").strip()
 
-        parts = re.split(r"(?:🥗|•|Tip\s*\d+)", tips_text, flags=re.I)
+        parts = re.split(r"(?:🥗|•|Tip\s*\d+|\d+\.)", tips_text, flags=re.I)
         tips = [p.strip() for p in parts if len(p.strip()) > 10]
 
     if not tips:
@@ -122,7 +134,7 @@ def analyze_food_with_vision(image_base64):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Analyze this food image and return FOOD ITEMS, TOTAL CALORIES and HEALTH TIPS."},
+                        {"type": "text", "text": "Analyze this food image and return FOOD ITEMS, TOTAL CALORIES, and HEALTH TIPS."},
                         {
                             "type": "image_url",
                             "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
