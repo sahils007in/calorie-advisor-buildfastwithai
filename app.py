@@ -18,34 +18,33 @@ if "api_key_valid" not in st.session_state:
 
 # ---------------- API Key Validation ----------------
 def validate_together_api_key(api_key: str) -> bool:
-    """
-    Validate Together API key using a lightweight inference call.
-    """
     try:
         test_client = OpenAI(
             api_key=api_key,
             base_url="https://api.together.xyz/v1"
         )
 
-        # Minimal, cheap call
         test_client.chat.completions.create(
-            model="meta-llama/Llama-3.1-8B-Instruct",
-            messages=[{"role": "user", "content": "Hello"}],
+            model="mistralai/Mixtral-8x7B-Instruct-v0.1",
+            messages=[{"role": "user", "content": "ping"}],
             max_tokens=1
         )
         return True
 
-    except Exception:
+    except Exception as e:
+        msg = str(e).lower()
+        if "quota" in msg or "rate limit" in msg:
+            return True
         return False
 
-# ---------------- Sidebar: API Key + Branding ----------------
+# ---------------- Sidebar ----------------
 with st.sidebar:
     st.header("🔑 Configuration")
 
     api_key_input = st.text_input(
         "Together API Key",
         type="password",
-        help="Your API key is validated before use and never stored."
+        help="Your API key is validated and used only for this session."
     )
 
     if api_key_input:
@@ -62,9 +61,8 @@ with st.sidebar:
                 st.session_state.api_key_valid = True
                 st.success("✅ API key is valid")
             else:
-                st.session_state.together_api_key = None
-                st.session_state.client = None
                 st.session_state.api_key_valid = False
+                st.session_state.client = None
                 st.error("❌ Invalid Together API key")
 
     st.markdown("---")
@@ -73,9 +71,9 @@ with st.sidebar:
         "[LinkedIn](https://www.linkedin.com/in/sahils007in/)"
     )
 
-# ---------------- Block App if Key Invalid ----------------
+# ---------------- Block App ----------------
 if not st.session_state.api_key_valid:
-    st.info("👈 Enter a valid Together API key in the sidebar to start.")
+    st.info("👈 Enter a valid Together API key to start.")
     st.stop()
 
 client = st.session_state.client
@@ -90,16 +88,6 @@ def analyze_food(image_base64):
     1. List of food items with estimated calories
     2. Total estimated calories
     3. Simple health advice
-
-    Format:
-    FOOD ITEMS:
-    1. Item - Calories
-
-    TOTAL CALORIES: Number
-
-    HEALTH TIPS:
-    • Tip 1
-    • Tip 2
     """
 
     response = client.chat.completions.create(
@@ -136,10 +124,6 @@ if uploaded_file:
 
     if st.button("Calculate Calories"):
         with st.spinner("Analyzing your food..."):
-            try:
-                image_base64 = image_to_base64(uploaded_file)
-                result = analyze_food(image_base64)
-                st.success("Analysis Complete!")
-                st.write(result)
-            except Exception as e:
-                st.error(f"Error analyzing image: {str(e)}")
+            result = analyze_food(image_to_base64(uploaded_file))
+            st.success("Analysis Complete!")
+            st.write(result)
