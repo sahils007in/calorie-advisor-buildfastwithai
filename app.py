@@ -29,7 +29,7 @@ with st.sidebar:
     api_key = st.text_input(
         "OpenAI API Key",
         type="password",
-        help="Your API key is validated and used only for this session."
+        help="Used only for this session."
     )
 
     if api_key and api_key != st.session_state.openai_api_key:
@@ -41,7 +41,7 @@ with st.sidebar:
                 st.success("✅ API key is valid")
             else:
                 st.session_state.api_key_valid = False
-                st.error("❌ Invalid OpenAI API key")
+                st.error("❌ Invalid API key")
 
     st.markdown("---")
     st.markdown(
@@ -61,28 +61,32 @@ def image_to_base64(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
 # ---------------- Output Formatting ----------------
-def normalize_food_items(text: str) -> str:
+def format_food_items(text: str) -> str:
     if "FOOD ITEMS:" not in text:
         return text
 
     before, rest = text.split("FOOD ITEMS:", 1)
-    lines = rest.strip().splitlines()
+    lines = rest.splitlines()
 
     items = []
-    remainder = []
+    seen = set()
 
     for line in lines:
-        if "TOTAL CALORIES" in line.upper():
-            remainder.append(line)
+        line = line.strip()
+        if not line or "TOTAL CALORIES" in line.upper():
             break
-        clean = re.sub(r"^[\-\•\d\.\)\s]+", "", line).strip()
-        if clean:
+
+        clean = line.lstrip("•-0123456789. ").strip()
+        key = clean.lower()
+
+        if clean and key not in seen:
+            seen.add(key)
             items.append(clean)
 
-    numbered = "\n".join([f"{i+1}. {item}" for i, item in enumerate(items)])
-    remaining_text = "\n".join(lines[len(items):])
+    numbered = "\n".join(f"{i+1}. {item}" for i, item in enumerate(items))
+    remainder = rest[rest.upper().find("TOTAL CALORIES"):] if "TOTAL CALORIES" in rest.upper() else ""
 
-    return f"{before.strip()}\n\nFOOD ITEMS:\n{numbered}\n{remaining_text.strip()}"
+    return f"{before.strip()}\n\nFOOD ITEMS:\n{numbered}\n\n{remainder.strip()}"
 
 
 def format_health_tips(text: str) -> str:
@@ -92,23 +96,15 @@ def format_health_tips(text: str) -> str:
     before, tips = text.split("HEALTH TIPS", 1)
     tips = tips.replace(":", "").strip()
 
-    # Normalize separators
-    tips = tips.replace("•", "\n").replace("-", "\n")
-
-    # Split on "Tip 1 / Tip 2 / Tip 3" (with or without emoji)
-    split_tips = re.split(
-        r"(?:🥗?\s*Tip\s*\d+[:\-]?)",
-        tips,
-        flags=re.IGNORECASE
-    )
+    raw_tips = re.split(r"(?:🥗|•|Tip\s*\d+)", tips, flags=re.IGNORECASE)
 
     clean_tips = [
         tip.strip()
-        for tip in split_tips
-        if len(tip.strip()) > 5
+        for tip in raw_tips
+        if len(tip.strip()) > 10
     ]
 
-    formatted = "\n".join([f"🥗 {tip}" for tip in clean_tips])
+    formatted = "\n".join(f"🥗 {tip}" for tip in clean_tips)
 
     return f"{before.strip()}\n\nHEALTH TIPS:\n{formatted}"
 
@@ -123,7 +119,7 @@ def highlight_total_calories(text: str) -> str:
 
 
 def prettify_output(text: str) -> str:
-    text = normalize_food_items(text)
+    text = format_food_items(text)
     text = format_health_tips(text)
     text = highlight_total_calories(text)
     return text.strip()
@@ -132,10 +128,8 @@ def prettify_output(text: str) -> str:
 def analyze_food_with_vision(image_base64):
     system_prompt = """
 You are a nutrition assistant.
-
-If the image shows food, make a BEST-EFFORT calorie estimate even if details are unclear.
-Do NOT refuse. Do NOT say you cannot analyze the image.
-Estimate using common portion sizes.
+If the image shows food, make a best-effort calorie estimate.
+Do not refuse. Use common portion sizes.
 """
 
     user_prompt = """
@@ -227,7 +221,7 @@ if uploaded_file:
 if st.session_state.vision_failed:
     st.markdown("### Help me out 👇")
     description = st.text_input(
-        "What food is this? (e.g., dal + rice, cheeseburger, salad)"
+        "What food is this? (e.g., pizza, dal + rice, salad)"
     )
 
     if description and st.button("Estimate Calories from Description"):
