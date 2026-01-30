@@ -62,56 +62,60 @@ def image_to_base64(uploaded_file):
 
 # ---------------- Output Formatting ----------------
 def prettify_output(text: str) -> str:
-    # Remove stray markdown symbols
     text = text.replace("**", "").strip()
 
-    # -------- FOOD ITEMS (dedupe + number) --------
+    # ---------- FOOD ITEMS (single, deduped) ----------
+    food_items = []
+    seen = set()
+
     if "FOOD ITEMS:" in text:
         _, rest = text.split("FOOD ITEMS:", 1)
-        lines = rest.splitlines()
-
-        items = []
-        seen = set()
-        remainder = []
-
-        for line in lines:
+        for line in rest.splitlines():
             line = line.strip()
-            if not line:
-                continue
-            if "TOTAL CALORIES" in line.upper():
-                remainder.append(line)
+            if not line or "TOTAL CALORIES" in line.upper():
                 break
-
             clean = line.lstrip("•-0123456789. ").strip()
             key = clean.lower()
-
             if clean and key not in seen:
                 seen.add(key)
-                items.append(clean)
+                food_items.append(clean)
 
-        food_block = "\n".join(f"{i+1}. {item}" for i, item in enumerate(items))
-        text = f"FOOD ITEMS:\n{food_block}\n\n" + "\n".join(remainder)
+    food_block = ""
+    if food_items:
+        food_block = "FOOD ITEMS:\n" + "\n".join(
+            f"{i+1}. {item}" for i, item in enumerate(food_items)
+        )
 
-    # -------- TOTAL CALORIES (highlight) --------
-    text = re.sub(
+    # ---------- TOTAL CALORIES (normal font) ----------
+    calories_match = re.search(
         r"TOTAL CALORIES:\s*([~]?\d+[,\d]*)",
-        r"### 🔥 TOTAL CALORIES: \1 calories",
         text,
         flags=re.IGNORECASE
     )
 
-    # -------- HEALTH TIPS (clean bullets) --------
+    calories_block = ""
+    if calories_match:
+        calories_block = f"🔥 TOTAL CALORIES: {calories_match.group(1)} calories"
+
+    # ---------- HEALTH TIPS (always present) ----------
+    tips = []
     if "HEALTH TIPS" in text:
-        before, tips = text.split("HEALTH TIPS", 1)
-        tips = tips.replace(":", "").strip()
+        tips_text = text.split("HEALTH TIPS", 1)[1]
+        raw = re.split(r"(?:🥗|•|Tip\s*\d+)", tips_text, flags=re.IGNORECASE)
+        tips = [t.strip() for t in raw if len(t.strip()) > 10]
 
-        raw = re.split(r"(?:🥗|•|Tip\s*\d+)", tips, flags=re.IGNORECASE)
-        clean = [t.strip() for t in raw if len(t.strip()) > 10]
+    # Default tips if missing
+    if not tips:
+        tips = [
+            "Watch portion sizes to avoid excess calorie intake.",
+            "Balance meals with vegetables and protein for better nutrition."
+        ]
 
-        tips_block = "\n".join(f"🥗 {tip}" for tip in clean)
-        text = f"{before.strip()}\n\nHEALTH TIPS:\n{tips_block}"
+    tips_block = "HEALTH TIPS:\n" + "\n".join(f"🥗 {tip}" for tip in tips)
 
-    return text.strip()
+    # ---------- Final Assembly ----------
+    parts = [food_block, calories_block, tips_block]
+    return "\n\n".join(part for part in parts if part)
 
 # ---------------- Vision Analysis ----------------
 def analyze_food_with_vision(image_base64):
@@ -210,7 +214,7 @@ if uploaded_file:
 if st.session_state.vision_failed:
     st.markdown("### Help me out 👇")
     description = st.text_input(
-        "What food is this? (e.g., pizza, dal + rice, salad)"
+        "What food is this? (e.g., rice, pizza, dal + roti)"
     )
 
     if description and st.button("Estimate Calories from Description"):
