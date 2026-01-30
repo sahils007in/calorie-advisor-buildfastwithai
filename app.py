@@ -1,5 +1,5 @@
 import streamlit as st
-from google import genai
+import google.genai as genai
 from google.genai import types
 from PIL import Image
 
@@ -8,7 +8,7 @@ st.set_page_config(page_title="Calorie Advisor", page_icon="🍽️")
 st.title("🍽️ Calorie Advisor")
 st.write("Upload a photo of your food to get calorie information!")
 
-# ---------------- API Key (Streamlit Secrets) ----------------
+# ---------------- API Key ----------------
 if "GOOGLE_API_KEY" not in st.secrets:
     st.error("GOOGLE_API_KEY not found. Please add it in Streamlit Secrets.")
     st.stop()
@@ -61,7 +61,6 @@ if uploaded_file:
 
             FOOD ITEMS:
             1. [Food Item] - [Calories]
-            2. [Food Item] - [Calories]
 
             TOTAL CALORIES: [Number]
 
@@ -79,7 +78,7 @@ if uploaded_file:
             st.success("Analysis Complete!")
             st.write(response)
 
-# ---------------- Footer / Branding ----------------
+# ---------------- Footer ----------------
 st.markdown("---")
 st.markdown(
     "Built by **Sahil Jain** 🚀  \n"
